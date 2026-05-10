@@ -1,0 +1,11 @@
+cmake-build-debug/
+cmake-build-release/
+build/
+
+tmp/*
+!tmp/.gitkeep
+
+output.txt
+
+.DS_Store
+.idea/
