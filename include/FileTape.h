@@ -8,13 +8,13 @@
 #include "ITape.h"
 #include "TapeConfig.h"
 
+#include <filesystem>
 #include <fstream>
-#include <string>
 
 class FileTape : public ITape {
 private:
     std::fstream file;
-    std::string fileName;
+    std::filesystem::path fileName;
     TapeConfig config;
 
     int currentPosition;
@@ -22,9 +22,11 @@ private:
 
     void delay(int milliseconds) const;
     std::streampos getPositionInFile(int position) const;
+    std::filesystem::path getTemporaryFileName() const;
+    void normalizeExistingFile() const;
 
 public:
-    FileTape(const std::string& fileName, const TapeConfig& config, int tapeSize);
+    FileTape(const std::filesystem::path& fileName, const TapeConfig& config, int tapeSize);
 
     int read() override;
     void write(int value) override;

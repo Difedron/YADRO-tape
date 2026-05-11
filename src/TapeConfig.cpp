@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sstream>
 
-TapeConfig TapeConfig::loadFromFile(const std::string& fileName) {
+TapeConfig TapeConfig::loadFromFile(const std::filesystem::path& fileName) {
     TapeConfig config;
 
     std::ifstream file(fileName);

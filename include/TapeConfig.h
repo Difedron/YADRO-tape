@@ -5,7 +5,7 @@
 #ifndef YADRO_TAPE_TAPECONFIG_H
 #define YADRO_TAPE_TAPECONFIG_H
 
-#include <string>
+#include <filesystem>
 
 struct TapeConfig {
     int readDelayMs = 0;
@@ -14,7 +14,7 @@ struct TapeConfig {
     int rewindDelayMs = 0;
     int memoryLimitBytes = 1024;
 
-    static TapeConfig loadFromFile(const std::string& fileName);
+    static TapeConfig loadFromFile(const std::filesystem::path& fileName);
 };
 
 #endif // YADRO_TAPE_TAPECONFIG_H

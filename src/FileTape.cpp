@@ -1,11 +1,17 @@
 #include "FileTape.h"
 
 #include <chrono>
+#include <filesystem>
 #include <iomanip>
 #include <stdexcept>
 #include <thread>
 
-FileTape::FileTape(const std::string& fileName, const TapeConfig& config, int tapeSize)
+namespace {
+const int CELL_WIDTH = 12;
+const int RECORD_SIZE = CELL_WIDTH + 1;
+}
+
+FileTape::FileTape(const std::filesystem::path& fileName, const TapeConfig& config, int tapeSize)
         : fileName(fileName), config(config), currentPosition(0), tapeSize(tapeSize) {
     file.open(fileName, std::ios::in | std::ios::out);
 
@@ -14,13 +20,24 @@ FileTape::FileTape(const std::string& fileName, const TapeConfig& config, int ta
 
         std::ofstream createFile(fileName);
 
+        if (!createFile.is_open()) {
+            throw std::runtime_error("Cannot create tape file: " + fileName.string());
+        }
+
         for (int i = 0; i < tapeSize; ++i) {
-            createFile << std::setw(12) << 0;
+            createFile << std::setw(CELL_WIDTH) << 0 << '\n';
         }
 
         createFile.close();
+    } else {
+        file.close();
+        normalizeExistingFile();
+    }
 
-        file.open(fileName, std::ios::in | std::ios::out);
+    file.open(fileName, std::ios::in | std::ios::out);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Cannot open tape file: " + fileName.string());
     }
 }
 
@@ -29,7 +46,55 @@ void FileTape::delay(int milliseconds) const {
 }
 
 std::streampos FileTape::getPositionInFile(int position) const {
-    return static_cast<std::streampos>(position * 12);
+    return static_cast<std::streampos>(position * RECORD_SIZE);
+}
+
+std::filesystem::path FileTape::getTemporaryFileName() const {
+    std::filesystem::path temporaryFileName = fileName;
+    temporaryFileName += ".normalize.tmp";
+
+    return temporaryFileName;
+}
+
+void FileTape::normalizeExistingFile() const {
+    std::error_code error;
+    std::uintmax_t expectedSize = static_cast<std::uintmax_t>(tapeSize * RECORD_SIZE);
+
+    if (std::filesystem::file_size(fileName, error) == expectedSize && !error) {
+        return;
+    }
+
+    std::ifstream inputFile(fileName);
+
+    if (!inputFile.is_open()) {
+        throw std::runtime_error("Cannot open tape file for normalization: " + fileName.string());
+    }
+
+    std::filesystem::path temporaryFileName = getTemporaryFileName();
+    std::ofstream temporaryFile(temporaryFileName, std::ios::trunc);
+
+    if (!temporaryFile.is_open()) {
+        throw std::runtime_error("Cannot create temporary tape file: " + temporaryFileName.string());
+    }
+
+    for (int i = 0; i < tapeSize; ++i) {
+        int value;
+
+        if (!(inputFile >> value)) {
+            throw std::runtime_error("Cannot normalize tape file: not enough integer values in " + fileName.string());
+        }
+
+        temporaryFile << std::setw(CELL_WIDTH) << value << '\n';
+    }
+
+    inputFile.close();
+    temporaryFile.close();
+
+    std::filesystem::rename(temporaryFileName, fileName, error);
+
+    if (error) {
+        throw std::runtime_error("Cannot replace normalized tape file: " + error.message());
+    }
 }
 
 int FileTape::read() {
@@ -43,7 +108,10 @@ int FileTape::read() {
     file.seekg(getPositionInFile(currentPosition));
 
     int value;
-    file >> value;
+
+    if (!(file >> value)) {
+        throw std::runtime_error("Cannot read tape value: " + fileName.string());
+    }
 
     return value;
 }
@@ -58,7 +126,7 @@ void FileTape::write(int value) {
     file.clear();
     file.seekp(getPositionInFile(currentPosition));
 
-    file << std::setw(12) << value;
+    file << std::setw(CELL_WIDTH) << value << '\n';
     file.flush();
 }
 
